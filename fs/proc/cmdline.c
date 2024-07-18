@@ -3,6 +3,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <asm/setup.h>
+#include <linux/slab.h>
 
 static char updated_command_line[COMMAND_LINE_SIZE];
 
@@ -26,9 +27,15 @@ static const struct file_operations cmdline_proc_fops = {
 
 static void proc_cmdline_set(char *name, char *value)
 {
-	char flag_str[COMMAND_LINE_SIZE];
+	char *flag_str = kmalloc(COMMAND_LINE_SIZE, GFP_KERNEL);
 	char *flag_substr;
 	char *flag_space_substr;
+
+	if (!flag_str) {
+		printk(KERN_ERR "Failed to allocate memory\n");
+		return;
+	}
+
  	scnprintf(flag_str, COMMAND_LINE_SIZE, "%s=", name);
 	flag_substr = strstr(updated_command_line, flag_str);
  	if (flag_substr) {
@@ -37,6 +44,8 @@ static void proc_cmdline_set(char *name, char *value)
 	}
  	// flag was not found, insert it
 	scnprintf(updated_command_line, COMMAND_LINE_SIZE, "%s %s=%s", updated_command_line, name, value);
+
+	kfree(flag_str);
 }
 
 static int __init proc_cmdline_init(void)
